@@ -12,5 +12,5 @@ The source code in this repository is licensed under the
 * **No Warranty:** This software is provided "as is" in the hope that it will be useful, but without any warranty.
 
 ### Hardware Compatibility
-This firmware is specifically designed to run on the **[Root Project] Hardware**, which is licensed under the **CERN-OHL-S v2** and can be found in the [Hardware Repository](LINK_TO_YOUR_HARDWARE_REPO).
+This firmware is specifically designed to run on the **[Root Project] Hardware**, which is licensed under the **CERN-OHL-S v2** and can be found in the [Hardware Repository](https://github.com/raul-estevez/root-nursery-pcb).
 
