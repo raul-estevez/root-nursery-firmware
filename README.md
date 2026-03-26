@@ -1,4 +1,4 @@
-## ⚖️ License
+## License
 This firmware is Open Source software. This project is committed to the principles of Open Source Hardware. We provide all design files, schematics, and source code to empower others to build, learn, and improve upon this hydroponics monitoring system. 
 
 ### Software License
