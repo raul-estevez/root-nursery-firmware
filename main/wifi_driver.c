@@ -46,8 +46,8 @@ void wifi_init_sta(void)
 
     wifi_config_t wifi_config = {
         .sta = {
-            .ssid     = WIFI_SSID,
-            .password = WIFI_PASS,
+            .ssid     = CONFIG_WIFI_SSID,
+            .password = CONFIG_WIFI_PASSWORD,
         },
     };
     esp_wifi_set_mode(WIFI_MODE_STA);
