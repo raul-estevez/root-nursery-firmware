@@ -1,3 +1,15 @@
+/*
+ * control_loop.c
+ *
+ * Proportional PAR controller and main sensing/reporting loop.
+ *
+ * par_control_loop() adjusts the LED duty cycle iteratively until the
+ * measured PAR matches the configured setpoint (or the iteration budget is
+ * exhausted). execute_main_loop() is called on every timer tick: it runs the
+ * controller, reads temperature and humidity, then publishes a JSON payload
+ * over MQTT.
+ */
+
 #include <stdio.h>
 #include <stdint.h>
 #include <math.h>
@@ -10,8 +22,22 @@
 #include "config.h"
 #include "cJSON.h"
 
+/* Duty cycle persisted across timer invocations so the controller does not
+ * restart from zero on each sensing period. */
 static float current_duty = 4096.0f;
 
+/*
+ * Proportional controller that drives PAR toward config.par_setpoint.
+ *
+ * Each iteration:
+ *   1. Reads the current PAR from the AS7341.
+ *   2. Computes error = setpoint - measured.
+ *   3. Clamps the proportional adjustment to PAR_MAX_CHANGE.
+ *   4. Updates the LED duty cycle and applies it.
+ *
+ * Returns 1 if the error fell within PAR_TOL before iterations ran out,
+ * -1 otherwise. The final error is written to *error_ret in both cases.
+ */
 int8_t par_control_loop(float* error_ret)
 {
     float error = 0.0f;
@@ -41,6 +67,15 @@ int8_t par_control_loop(float* error_ret)
     return -1;
 }
 
+/*
+ * Timer callback executed every config.sense_period seconds.
+ *
+ * Sequence:
+ *   1. Run the PAR control loop to settle the LED at the setpoint.
+ *   2. Read temperature and humidity from the AHT20.
+ *   3. Read the full spectral data from the AS7341 and compute PAR.
+ *   4. Publish all readings as a JSON object to the device MQTT topic.
+ */
 void execute_main_loop(void *params){
     (void) params;
 
@@ -62,6 +97,7 @@ void execute_main_loop(void *params){
     cJSON_AddNumberToObject(root, "power", (uint16_t)current_duty);
     cJSON_AddNumberToObject(root, "par", par);
 
+    /* Nest the per-channel ADC counts under a "spectrum" key. */
     cJSON *spectrum_json = cJSON_CreateObject();
     cJSON_AddNumberToObject(spectrum_json, "f1", spectrum_raw.f1);
     cJSON_AddNumberToObject(spectrum_json, "f2", spectrum_raw.f2);
@@ -80,5 +116,5 @@ void execute_main_loop(void *params){
     mqtt_publish(payload);
 
     cJSON_free(payload);
-    cJSON_Delete(root);  // also frees spectrum_json
+    cJSON_Delete(root);  /* also frees spectrum_json */
 }

@@ -1,3 +1,16 @@
+/*
+ * as7341_driver.c
+ *
+ * Thin wrapper around the AS7341 8-channel spectral sensor.
+ *
+ * Raw ADC counts from the eight visible-light channels (f1-f8) are converted
+ * to an estimated PAR value (umol/m2/s) using a linear regression model whose
+ * coefficients were fitted offline against a reference PAR meter doi:10.3390/electronics14112225.
+ *
+ * The new ESP-IDF I2C master bus API (driver/i2c_master.h) is used here,
+ * unlike the AHT20 driver which uses the legacy i2c_bus component.
+ */
+
 #include "as7341_driver.h"
 #include "config.h"
 
@@ -5,7 +18,12 @@
 
 // TODO: Add the capability to use other gains.
 
-
+/*
+ * Linear model: PAR = c0 + c1*f1 + c2*f2 + ... + c8*f8
+ * Index 0 is the intercept; indices 1-8 correspond to channels f1-f8.
+ * Coefficients were derived from a least-squares fit against a calibrated
+ * reference sensor.
+ */
 const float par_coef[9] = {
     -1.83008,  /* intercept */
     -0.10893,  /* f1 */
@@ -18,8 +36,15 @@ const float par_coef[9] = {
      0.087622  /* f8 */
 };
 
-static i2c_master_bus_handle_t create_i2c_bus(void)
+
+/*
+ * Initialise the AS7341, take one spectral measurement, then clean up.
+ * A fresh I2C bus and device handle are created and destroyed on every call
+ * to avoid holding the bus between sensing periods.
+ */
+as7341_channels_spectral_data_t read_raw_spectrum(void)
 {
+
     i2c_master_bus_config_t bus_cfg = {
         .clk_source      = I2C_CLK_SRC_DEFAULT,
         .i2c_port        = I2C_PORT,
@@ -29,12 +54,6 @@ static i2c_master_bus_handle_t create_i2c_bus(void)
     };
     i2c_master_bus_handle_t bus;
     i2c_new_master_bus(&bus_cfg, &bus);
-    return bus;
-}
-
-as7341_channels_spectral_data_t read_raw_spectrum(void)
-{
-    i2c_master_bus_handle_t bus = create_i2c_bus();
 
     as7341_config_t dev_cfg = {
         .i2c_address    = I2C_AS7341_DEV_ADDR,
@@ -54,6 +73,7 @@ as7341_channels_spectral_data_t read_raw_spectrum(void)
     return adc_data;
 }
 
+/* Apply the linear PAR model to a set of raw ADC channel counts. */
 float compute_par(as7341_channels_spectral_data_t spectrum)
 {
     return par_coef[0]
@@ -67,6 +87,7 @@ float compute_par(as7341_channels_spectral_data_t spectrum)
          + par_coef[8] * spectrum.f8;
 }
 
+/* Convenience wrapper: read the sensor and return PAR in a single call. */
 float read_par(void)
 {
     return compute_par(read_raw_spectrum());

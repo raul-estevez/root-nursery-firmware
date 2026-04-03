@@ -1,3 +1,13 @@
+/*
+ * mqtt_driver.c
+ *
+ * MQTT client initialisation, event handling, and publish helper.
+ *
+ * Event group bits (MQTT_CONNECTED_BIT, MQTT_SUBSCRIBED_BIT, MQTT_DATA_BIT)
+ * are defined in config.h and used by get_config() in config.c to
+ * synchronise startup.
+ */
+
 #include "mqtt_driver.h"
 #include "config.h"
 #include "esp_log.h"
@@ -8,18 +18,19 @@
 #include "nvs_flash.h"
 
 #include <stdio.h>
-// #include "freertos/event_groups.h"
 
 static esp_mqtt_client_handle_t mqtt_client;
 static EventGroupHandle_t mqtt_event_group;
 
-nursery_config_t config = {
-    .name         = "default",
-    .topic        = "nursery/default",
-    .sense_period = 10,
-    .par_setpoint = 0,
-};
-
+/*
+ * MQTT event handler registered for all event IDs.
+ *
+ * CONNECTED: subscribes to the device topic and signals readiness.
+ * SUBSCRIBED: signals that the subscription is active (used by get_config
+ *             to know it is safe to wait for a DATA event).
+ * DATA: parses the received JSON, updates config, resubscribes under the new
+ *       topic if the name changed, persists to NVS, and signals get_config.
+ */
 static void mqtt_event_handler(void *handler_args, esp_event_base_t base,
                                int32_t event_id, void *event_data)
 {
@@ -44,6 +55,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base,
         printf("TOPIC=%.*s\r\n", event->topic_len, event->topic);
         printf("DATA=%.*s\r\n", event->data_len, event->data);
 
+        /* Parse the JSON payload and update whichever fields are present. */
         char *payload = strndup(event->data, event->data_len);
         cJSON *root = cJSON_Parse(payload);
 
@@ -61,7 +73,8 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base,
             config.par_setpoint = par_setpoint->valueint;
         }
 
-        // Change the topic
+        /* If the device name changed, move the MQTT subscription to the new
+         * topic so future messages are received correctly. */
         esp_mqtt_client_unsubscribe(client, config.topic);
         snprintf(config.topic, sizeof(config.topic), "nursery/%s", config.name);
         esp_mqtt_client_subscribe(client, config.topic, 0);
@@ -69,7 +82,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base,
         cJSON_Delete(root);
         free(payload);
 
-        // Save current config on the NVS
+        /* Persist the updated configuration so it survives a reboot. */
         nvs_handle_t nvs_hd;
         nvs_open("configuration", NVS_READWRITE, &nvs_hd);
         nvs_set_str(nvs_hd, "name", config.name);
@@ -86,6 +99,8 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base,
     }
 }
 
+/* Initialise the event group, configure the MQTT client with the broker URL
+ * from Kconfig, register the event handler, and start the client. */
 void mqtt_start(void)
 {
     mqtt_event_group = xEventGroupCreate();
@@ -99,6 +114,8 @@ void mqtt_start(void)
     printf("Publishing to: %s\n", config.topic);
 }
 
+/* Publish a null-terminated string to the current device topic (QoS 0,
+ * retain off). */
 void mqtt_publish(const char *payload)
 {
     esp_mqtt_client_publish(mqtt_client, config.topic, payload, 0, 0, 0);

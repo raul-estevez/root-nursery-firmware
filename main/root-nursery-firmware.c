@@ -1,3 +1,11 @@
+/*
+ * root-nursery-firmware.c
+ *
+ * Application entry point. Brings up the network stack, connects to WiFi and
+ * MQTT, loads persistent configuration, initialises the LED controller, and
+ * schedules the sensor/control loop on a periodic timer.
+ */
+
 #include <stdio.h>
 #include <string.h>
 
@@ -20,12 +28,13 @@
 
 void app_main(void)
 {
-    // ── System unit ───────────────────────────────────────────────────────────
+    /* Initialise NVS, the TCP/IP stack, and the default event loop. These
+     * must come first because WiFi and MQTT both depend on them. */
     nvs_flash_init();
     esp_netif_init();
     esp_event_loop_create_default();
 
-    // ── WiFi ──────────────────────────────────────────────────────────────────
+    /* Start WiFi in station mode and wait until connected or failed. */
     wifi_init_sta();
 
     EventBits_t bits = xEventGroupWaitBits(wifi_get_event_group(),
@@ -37,7 +46,7 @@ void app_main(void)
         return;
     }
 
-    // ── MQTT ──────────────────────────────────────────────────────────────────
+    /* Start the MQTT client and wait for the broker connection. */
     printf("WiFi connected! Starting MQTT...\n");
     mqtt_start();
 
@@ -50,12 +59,17 @@ void app_main(void)
         return;
     }
 
-    // Get the config (name, period and par) from the NVS or wait for it to be transmitted via MQTT
+    /* Load device name, sensing period, and PAR setpoint from NVS.
+     * If this is the first boot, get_config() blocks until a configuration
+     * message arrives over MQTT's topic nursery/default. */
     get_config();
-    // Initialize the LEDC for the controlling of the LED's
+
+    /* Initialise the LEDC peripheral for PWM control of the grow light. */
     led_init();
 
-    // Configure and run the timer to periodically sense the parameters
+    /* Create a periodic timer that fires execute_main_loop() every
+     * sense_period seconds. Run one iteration immediately before starting
+     * the timer so there is no initial delay. */
     esp_timer_handle_t timer_hd;
     const esp_timer_create_args_t timer_config = {
         .callback = &execute_main_loop,

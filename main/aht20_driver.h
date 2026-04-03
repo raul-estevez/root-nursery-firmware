@@ -4,9 +4,9 @@
  * @brief Read temperature and relative humidity from the AHT20 sensor.
  *
  * Uses the legacy I2C bus API (i2c_bus) on I2C_PORT with the pins
- * defined in config.h.
+ * defined in config.h. The bus is created and destroyed within the call.
  *
- * @param[out] temperature  Temperature in °C.
+ * @param[out] temperature  Temperature in degrees C.
  * @param[out] humidity     Relative humidity in %.
  */
 void aht20_read(float *temperature, float *humidity);

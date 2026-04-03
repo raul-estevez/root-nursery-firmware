@@ -1,3 +1,13 @@
+/*
+ * wifi_driver.c
+ *
+ * WiFi station initialisation and connection management.
+ *
+ * After wifi_init_sta() returns, the caller should wait on the event group
+ * returned by wifi_get_event_group() for either WIFI_CONNECTED_BIT (success)
+ * or WIFI_FAIL_BIT (retry limit exceeded).
+ */
+
 #include "wifi_driver.h"
 #include "config.h"
 
@@ -10,6 +20,12 @@
 static EventGroupHandle_t wifi_event_group;
 static int s_retry_num = 0;
 
+/*
+ * Handles WiFi and IP events:
+ *   STA_START:        begin the connection attempt.
+ *   STA_DISCONNECTED: retry up to WIFI_MAX_RETRY times, then set WIFI_FAIL_BIT.
+ *   GOT_IP:           reset the retry counter and set WIFI_CONNECTED_BIT.
+ */
 static void wifi_event_handler(void *arg, esp_event_base_t event_base,
                                int32_t event_id, void *event_data)
 {
@@ -28,6 +44,10 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
     }
 }
 
+/* Configure the WiFi stack in station mode, register event handlers for
+ * connection and IP events, and start the connection process. Credentials
+ * are taken from WIFI_SSID and WIFI_PASS defined in config.h (sourced from
+ * Kconfig). */
 void wifi_init_sta(void)
 {
     wifi_event_group = xEventGroupCreate();

@@ -2,22 +2,31 @@
 
 #include <stdint.h>
 
-// ── PWM / LEDC parameters ────────────────────────────────────────────────────
+/* GPIO pin and PWM frequency for the grow-light LED. */
 #define LED_GPIO            (0)
 #define LED_FREQ_HZ         (100)
-#define LED_DUTY_MAX        (8192)   /* 13-bit resolution → 2^13 */
+
+#define LEDC_TIMER      LEDC_TIMER_0
+#define LEDC_MODE       LEDC_LOW_SPEED_MODE
+#define LEDC_CHANNEL    LEDC_CHANNEL_0
+#define LEDC_DUTY_RES   LEDC_TIMER_13_BIT   /* 13-bit: range 0-8191 */
+#define LEDC_CLK_SRC    LEDC_AUTO_CLK
+
+
+/* 13-bit LEDC resolution: valid duty range is 0 to 8191. */
+#define LED_DUTY_MAX        (8191)
 #define LED_DUTY_MIN        (0)
 
-// ── Proportional controller parameters ───────────────────────────────────────
-#define PAR_IDEAL           (50.0f)  /* target PAR (µmol/m²/s)  */
-#define PAR_TOL             (1.0f)   /* convergence tolerance    */
-#define PAR_P_GAIN          (40.0f)  /* proportional gain        */
-#define PAR_MAX_CHANGE      (1000.0f)/* max duty-cycle step      */
-#define PAR_MAX_ITER        (15)     /* iterations per control call */
+/* Proportional controller tuning parameters. Feel free to tune for you setup */
+#define PAR_TOL             (1.0f)    /* Convergence tolerance in umol/m2/s */
+#define PAR_P_GAIN          (40.0f)   /* Proportional gain (duty counts per umol/m2/s error) */
+#define PAR_MAX_CHANGE      (1000.0f) /* Maximum duty-cycle step per iteration */
+#define PAR_MAX_ITER        (15)      /* Maximum iterations per control call */
 
 /**
  * @brief Initialise the LEDC peripheral for LED PWM output.
- *        Must be called once before set_led_duty() or par_control_loop().
+ *
+ * Must be called once before led_set_duty() or par_control_loop().
  */
 void led_init(void);
 
@@ -25,7 +34,6 @@ void led_init(void);
  * @brief Set the LED PWM duty cycle.
  *
  * @param duty  Value in [LED_DUTY_MIN, LED_DUTY_MAX].
- *              Internally inverted so that higher duty = more light.
+ *              Internally inverted so that a higher value means more light.
  */
 void led_set_duty(uint16_t duty);
-
