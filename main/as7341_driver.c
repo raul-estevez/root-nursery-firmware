@@ -3,6 +3,9 @@
 
 #include "driver/i2c_master.h"
 
+// TODO: Add the capability to use other gains.
+
+
 const float par_coef[9] = {
     -1.83008,  /* intercept */
     -0.10893,  /* f1 */
@@ -29,7 +32,7 @@ static i2c_master_bus_handle_t create_i2c_bus(void)
     return bus;
 }
 
-as7341_channels_spectral_data_t spectrum_read_raw(void)
+as7341_channels_spectral_data_t read_raw_spectrum(void)
 {
     i2c_master_bus_handle_t bus = create_i2c_bus();
 
@@ -66,5 +69,5 @@ float compute_par(as7341_channels_spectral_data_t spectrum)
 
 float read_par(void)
 {
-    return compute_par(spectrum_read_raw());
+    return compute_par(read_raw_spectrum());
 }

@@ -64,5 +64,7 @@ void app_main(void)
     esp_timer_create(&timer_config, &timer_hd);
     int64_t timeout_us = config.sense_period * 1000000;
 
+    execute_main_loop(NULL);
+
     esp_timer_start_periodic(timer_hd, timeout_us);
 }

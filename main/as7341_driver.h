@@ -13,7 +13,7 @@ extern const float par_coef[9];
  *
  * @return Struct with per-channel ADC values (f1–f8, clear, nir).
  */
-as7341_channels_spectral_data_t read_raw(void);
+as7341_channels_spectral_data_t read_raw_spectrum(void);
 
 /**
  * @brief Compute PAR (µmol/m²/s) from a raw spectral reading.
