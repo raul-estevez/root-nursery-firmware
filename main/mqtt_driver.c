@@ -25,11 +25,10 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base,
 {
     esp_mqtt_event_handle_t event = event_data;
     esp_mqtt_client_handle_t client = event->client;
-    int msg_id;
     switch ((esp_mqtt_event_id_t)event_id) {
     case MQTT_EVENT_CONNECTED:
         printf("MQTT connected!\n");
-        msg_id = esp_mqtt_client_subscribe(client, config.topic, 0);
+        esp_mqtt_client_subscribe(client, config.topic, 0);
         xEventGroupSetBits(mqtt_event_group, MQTT_CONNECTED_BIT);
         break;
     case MQTT_EVENT_DISCONNECTED:
@@ -63,7 +62,9 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base,
         }
 
         // Change the topic
+        esp_mqtt_client_unsubscribe(client, config.topic);
         snprintf(config.topic, sizeof(config.topic), "nursery/%s", config.name);
+        esp_mqtt_client_subscribe(client, config.topic, 0);
 
         cJSON_Delete(root);
         free(payload);
