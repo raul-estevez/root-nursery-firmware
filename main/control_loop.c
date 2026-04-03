@@ -43,34 +43,23 @@ int8_t par_control_loop(float* error_ret)
 
 void execute_main_loop(void *params){
     (void) params;
-    // printf("Starting loop\n");
-    // ── Initial sensor readings ───────────────────────────────────────────────
+
+
+    float error;
+    int8_t converged = par_control_loop(&error);
 
     float temperature, humidity;
     aht20_read(&temperature, &humidity);
-    // snprintf(payload, sizeof(payload), "%.2f\t%.2f", temperature, humidity);
-    // mqtt_publish(payload);
     
     as7341_channels_spectral_data_t spectrum_raw = read_raw_spectrum();
     float par = compute_par(spectrum_raw);
 
-    // float par = read_par();
-    // snprintf(payload, sizeof(payload), "%.4f", par);
-    // mqtt_publish(payload);
-
-    // led_set_duty((uint16_t)current_duty);
-
-    // current_duty = LED_DUTY_MAX / 2.0f; /* reset search point each cycle */
-    float error;
-    int8_t converged = par_control_loop(&error);
-
-    // snprintf(payload, sizeof(payload), "%.4f\t%d", error, converged);
 
     cJSON *root = cJSON_CreateObject();
 
     cJSON_AddNumberToObject(root, "temperature", temperature);
     cJSON_AddNumberToObject(root, "humidity", humidity);
-    cJSON_AddNumberToObject(root, "power", current_duty);
+    cJSON_AddNumberToObject(root, "power", (uint16_t)current_duty);
     cJSON_AddNumberToObject(root, "par", par);
 
     cJSON *spectrum_json = cJSON_CreateObject();
